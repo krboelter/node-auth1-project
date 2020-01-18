@@ -1,10 +1,11 @@
 const bcrypt = require("bcryptjs")
 const express = require("express")
 const usersModel = require("./users-model")
+const restricted = require("../middleware/restricted")
 
 const router = express.Router()
 
-router.get("/users", async (req, res, next) => {
+router.get("/users", restricted(), async (req, res, next) => {
     try {
         const users = await usersModel.find()
 
@@ -34,17 +35,29 @@ router.post("/login", async (req, res, next) => {
         const passwordValid = await bcrypt.compare(password, user.password)
 
         if (user && passwordValid) {
+            req.session.user = user
             res.status(200).json({
-                message: `Welcome ${user.username}!`,
+                message: "Welcome!",
+                user: user.id
             })
         } else {
-            res.status(401).json({
-                message: "You shall not pass!"
-            })
+            next(err)
         }
     } catch(err) {
         next(err)
     }
+})
+
+router.get("/logout", restricted(), (req, res, next) => {
+    req.session.destroy(err => {
+        if (err) {
+            next(err)
+        } else {
+            res.status(200).json({
+                message: "You have been logged out."
+            })
+        }
+    })
 })
 
 module.exports = router
